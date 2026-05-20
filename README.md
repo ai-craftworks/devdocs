@@ -11,6 +11,14 @@ npm install
 npm run start
 ```
 
+### Link globally
+
+```bash
+npm link
+
+devdocs start
+```
+
 Then open **http://localhost:3000** in your browser.
 
 ---
