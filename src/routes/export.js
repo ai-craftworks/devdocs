@@ -154,7 +154,7 @@ function docToHtml(doc) {
             <div class="step-num">${String(i+1).padStart(2,'0')}</div>
             <div class="step-body">
               ${s.title ? `<div class="step-title">${esc(s.title)}</div>` : ''}
-              ${s.description ? `<div class="step-desc">${esc(s.description)}</div>` : ''}
+              ${s.description ? `<div class="step-desc">${s.description}</div>` : ''}
               ${s.code ? codeBlock(s.code, m.language) : ''}
             </div>
           </div>`).join('')}</div>
@@ -174,7 +174,7 @@ function docToHtml(doc) {
             <div class="step-num guide-num">${i+1}</div>
             <div class="step-body">
               ${s.title ? `<div class="step-title">${esc(s.title)}</div>` : ''}
-              ${s.description ? `<div class="step-desc">${esc(s.description)}</div>` : ''}
+              ${s.description ? `<div class="step-desc">${s.description}</div>` : ''}
               ${s.code ? codeBlock(s.code, m.language) : ''}
             </div>
           </div>`).join('')}</div>`;
