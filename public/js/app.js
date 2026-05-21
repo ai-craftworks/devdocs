@@ -650,7 +650,7 @@ function renderAlgorithmDoc(doc) {
       <div class="algo-step-num">${String(i + 1).padStart(2, '0')}</div>
       <div class="algo-step-content">
         ${s.title ? `<div class="algo-step-title">${esc(s.title)}</div>` : ''}
-        ${s.description ? `<div class="algo-step-desc">${esc(s.description)}</div>` : ''}
+        ${s.description ? `<div class="algo-step-desc">${s.description}</div>` : ''}
         ${s.code ? codeBlock(s.code, lang) : ''}
       </div>
     </div>`).join('')}
@@ -671,7 +671,7 @@ function renderGuideDoc(doc) {
       <div class="algo-step-num" style="background:#f0fdfa;border-color:#99f6e4;color:var(--teal)">${i + 1}</div>
       <div class="algo-step-content">
         ${s.title ? `<div class="algo-step-title">${esc(s.title)}</div>` : ''}
-        ${s.description ? `<div class="algo-step-desc">${esc(s.description)}</div>` : ''}
+        ${s.description ? `<div class="algo-step-desc">${s.description}</div>` : ''}
         ${s.code ? codeBlock(s.code, lang) : ''}
       </div>
     </div>`).join('')}
@@ -915,6 +915,7 @@ function renderEditorFields(type, doc) {
     requestAnimationFrame(() => {
       state.quillInstances.overview = createQuill('quill-overview', doc?.content || '', '140px');
       steps.forEach((s, i) => {
+      state.quillInstances[`step-desc-${i}`] = createQuill(`quill-step-desc-${i}`, s.description || '', '120px');
         if (s.code) {
           const el = document.getElementById(`cm-step-${i}`);
           if (el) {
@@ -956,6 +957,7 @@ function renderEditorFields(type, doc) {
       state.quillInstances.intro   = createQuill('quill-intro',   doc?.content || '', '140px');
       state.quillInstances.prereqs = createQuill('quill-prereqs', m.prerequisites || '', '100px');
       steps.forEach((s, i) => {
+      state.quillInstances[`step-desc-${i}`] = createQuill(`quill-step-desc-${i}`, s.description || '', '120px');
         if (s.code) {
           const el = document.getElementById(`cm-step-${i}`);
           if (el) {
@@ -1125,10 +1127,10 @@ function collectPageCells() {
 function renderStepForm(step, index) {
   return `
     <div class="step-row" id="step-row-${index}">
-      <div class="step-num">${String(index + 1).padStart(2, '0')}</div>
+      <div class="step-num">${String(index + 1).padStart(2, '00')}</div>
       <div class="step-inputs">
         <input type="text" class="step-input title" placeholder="Step title…" value="${esc(step.title || '')}" />
-        <input type="text" class="step-input desc"  placeholder="Step description…" value="${esc(step.description || '')}" />
+        <div class="step-desc-quill" id="quill-step-desc-${index}"></div>
         <button class="step-code-toggle" id="step-code-toggle-${index}" onclick="app.toggleStepCode(${index})">▼ Add code</button>
         <div class="step-code-area" id="step-code-area-${index}">
           <div class="cm-wrapper" style="margin-top:4px"><div id="cm-step-${index}"></div></div>
@@ -1160,18 +1162,24 @@ function addStep() {
   div.innerHTML = renderStepForm({ title: '', description: '', code: '' }, index);
   builder.appendChild(div.firstElementChild);
   renumberSteps();
+  // Init Quill for the new step's description
+  const newIndex = builder.querySelectorAll('.step-row').length - 1;
+  requestAnimationFrame(() => {
+    state.quillInstances[`step-desc-${newIndex}`] = createQuill(`quill-step-desc-${newIndex}`, '', '120px');
+  });
 }
 
 function removeStep(index) {
   document.getElementById(`step-row-${index}`)?.remove();
   if (state.cmInstances[`step-${index}`]) { state.cmInstances[`step-${index}`].destroy(); delete state.cmInstances[`step-${index}`]; }
+  if (state.quillInstances[`step-desc-${index}`]) { delete state.quillInstances[`step-desc-${index}`]; }
   renumberSteps();
 }
 
 function renumberSteps() {
   document.querySelectorAll('#stepBuilder .step-row').forEach((row, i) => {
     row.id = `step-row-${i}`;
-    const num = row.querySelector('.step-num'); if (num) num.textContent = String(i + 1).padStart(2, '00');
+    const num = row.querySelector('.step-num'); if (num) num.textContent = String(i + 1).padStart(2, '0');;
     row.querySelector('.remove-step-btn')?.setAttribute('onclick', `app.removeStep(${i})`);
     const tog = row.querySelector('.step-code-toggle');
     if (tog) { tog.id = `step-code-toggle-${i}`; tog.setAttribute('onclick', `app.toggleStepCode(${i})`); }
@@ -1294,7 +1302,8 @@ function collectFormData() {
         const codeArea = document.getElementById(`step-code-area-${i}`);
         const code = (codeArea?.classList.contains('visible') && state.cmInstances[`step-${i}`])
           ? getEditorValue(state.cmInstances[`step-${i}`]) : '';
-        steps.push({ title: inputs[0]?.value || '', description: inputs[1]?.value || '', code });
+        const description = getQuillHtml(state.quillInstances[`step-desc-${i}`]);
+        steps.push({ title: inputs[0]?.value || '', description, code });
       });
       metadata = { steps, language: lang, timeComplexity: document.getElementById('timeComplexity')?.value || '', spaceComplexity: document.getElementById('spaceComplexity')?.value || '' };
       break;
@@ -1309,7 +1318,8 @@ function collectFormData() {
         const codeArea = document.getElementById(`step-code-area-${i}`);
         const code = (codeArea?.classList.contains('visible') && state.cmInstances[`step-${i}`])
           ? getEditorValue(state.cmInstances[`step-${i}`]) : '';
-        steps.push({ title: inputs[0]?.value || '', description: inputs[1]?.value || '', code });
+        const description = getQuillHtml(state.quillInstances[`step-desc-${i}`]);
+        steps.push({ title: inputs[0]?.value || '', description, code });
       });
       metadata = { steps, language: lang, prerequisites: getQuillHtml(state.quillInstances.prereqs) };
       break;
