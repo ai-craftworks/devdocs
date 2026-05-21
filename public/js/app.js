@@ -340,6 +340,10 @@ async function viewProject(project) {
         </div>
       </div>
       <div class="topbar-right">
+        <button class="btn-secondary" onclick="app.exportProjectSite('${project._id}','${esc(project.name)}')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export Site
+        </button>
         <button class="btn-secondary" onclick="app.openEditProject(app.getProject())">${iconEdit()} Edit</button>
         <button class="btn-ghost" style="color:var(--red)" onclick="app.confirmDeleteProject(app.getProject())">${iconDelete()} Delete</button>
       </div>
@@ -479,6 +483,23 @@ function renderRepoPage() {
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Add Document
         </button>
+        <div class="export-dropdown" id="exportDropdown-${repo._id}">
+          <button class="btn-secondary" onclick="app.toggleExportMenu('${repo._id}')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="export-menu" id="exportMenu-${repo._id}">
+            <a class="export-menu-item" href="/api/export/repository/${repo._id}/pdf" target="_blank">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              Export as PDF
+            </a>
+            <a class="export-menu-item" href="/api/export/repository/${repo._id}/markdown" download>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+              Export as Markdown
+            </a>
+          </div>
+        </div>
         <button class="btn-secondary" onclick="app.openEditRepo('${repo._id}')">${iconEdit()} Edit</button>
         <button class="btn-icon danger" onclick="app.confirmDeleteRepo('${repo._id}','${esc(repo.name)}')" title="Delete">${iconDelete()}</button>
       </div>
@@ -958,6 +979,11 @@ function renderEditorFields(type, doc) {
     ).join('');
 
     container.innerHTML = `
+      <div id="pageCellList" class="page-cell-list">
+        ${state.pageCells.length === 0
+          ? `<div class="page-empty-hint">Click "Add Text Block" or "Add Code Block" to start building your page.</div>`
+          : wrappersHtml}
+      </div>
       <div class="page-editor-toolbar">
         <button class="page-add-btn text-btn" onclick="app.addPageCell('text')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
@@ -968,11 +994,7 @@ function renderEditorFields(type, doc) {
           Add Code Block
         </button>
       </div>
-      <div id="pageCellList" class="page-cell-list">
-        ${state.pageCells.length === 0
-          ? `<div class="page-empty-hint">Click "Add Text Block" or "Add Code Block" to start building your page.</div>`
-          : wrappersHtml}
-      </div>`;
+      `;
 
     // Mount each cell — wrappers are now in the DOM
     requestAnimationFrame(() => {
@@ -1444,6 +1466,33 @@ async function handleSearch(query) {
   }, 300);
 }
 
+// ── Export helpers ────────────────────────────────────────────────────────────
+function exportProjectSite(projectId, projectName) {
+  const a = document.createElement('a');
+  a.href = `/api/export/project/${projectId}/site`;
+  a.download = `${projectName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-docs.zip`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  toast('Generating site… download will start shortly', 'info');
+}
+
+function toggleExportMenu(repoId) {
+  const menu = document.getElementById(`exportMenu-${repoId}`);
+  if (!menu) return;
+  const isOpen = menu.classList.contains('open');
+  // close all open menus first
+  document.querySelectorAll('.export-menu.open').forEach(m => m.classList.remove('open'));
+  if (!isOpen) menu.classList.add('open');
+}
+
+// Close export menus when clicking outside
+document.addEventListener('click', e => {
+  if (!e.target.closest('.export-dropdown')) {
+    document.querySelectorAll('.export-menu.open').forEach(m => m.classList.remove('open'));
+  }
+});
+
 // ── Public API ────────────────────────────────────────────────────────────────
 window.app = {
   goHome, toggleSidebar,
@@ -1459,6 +1508,7 @@ window.app = {
   changeCodeLang, changeExampleLang,
   addPageCell, removePageCell, movePageCell, changePageCellLang,
   copyCode, closeModal,
+  exportProjectSite, toggleExportMenu,
 };
 
 // ── Init ──────────────────────────────────────────────────────────────────────

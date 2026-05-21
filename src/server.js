@@ -14,6 +14,7 @@ app.use(express.static(path.join(__dirname, '../public')));
 app.use('/api/projects', require('./routes/projects'));
 app.use('/api/repositories', require('./routes/repositories'));
 app.use('/api/documents', require('./routes/documents'));
+app.use('/api/export', require('./routes/export'));
 
 // SPA fallback
 app.get('*', (req, res) => {
