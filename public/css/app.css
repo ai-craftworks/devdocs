@@ -2,30 +2,41 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:        #f8f9fb;
-  --bg2:       #ffffff;
-  --bg3:       #f1f3f7;
-  --bg4:       #e8ecf2;
-  --border:    #e2e6ed;
-  --border2:   #d0d7e2;
-  --text:      #111827;
-  --text2:     #374151;
-  --text3:     #6b7280;
-  --text4:     #9ca3af;
-  --accent:    #4f46e5;
-  --accent2:   #6366f1;
-  --accent-bg: #eef2ff;
-  --accent-border: #c7d2fe;
-  --red:       #dc2626;
-  --red-bg:    #fef2f2;
-  --green:     #059669;
-  --green-bg:  #ecfdf5;
-  --yellow:    #d97706;
-  --yellow-bg: #fffbeb;
-  --blue:      #2563eb;
-  --blue-bg:   #eff6ff;
-  --purple:    #7c3aed;
-  --teal:      #0d9488;
+  /* Base surfaces — warm off-white instead of stark white */
+  --bg:        #f0ede8;
+  --bg2:       #f7f4f0;
+  --bg3:       #ede9e3;
+  --bg4:       #e3ddd6;
+
+  /* Borders — slightly warm-toned */
+  --border:    #d9d3cb;
+  --border2:   #c9c2b8;
+
+  /* Text — warm dark brown instead of cool grey-black */
+  --text:      #1c1917;
+  --text2:     #3d3530;
+  --text3:     #78716c;
+  --text4:     #a8a29e;
+
+  /* Accent — deep teal/slate instead of electric indigo */
+  --accent:       #2d6a7f;
+  --accent2:      #3d8fa8;
+  --accent-bg:    #e8f4f8;
+  --accent-border:#b3d8e4;
+
+  /* Semantic colours — toned down, no neon */
+  --red:       #c0392b;
+  --red-bg:    #fdf0ee;
+  --green:     #2e7d5e;
+  --green-bg:  #eaf5f0;
+  --yellow:    #b45309;
+  --yellow-bg: #fdf5e6;
+  --blue:      #1d5f9e;
+  --blue-bg:   #eaf1fb;
+  --purple:    #5b3a8a;
+  --teal:      #1a6b65;
+
+  /* Rest unchanged */
   --sidebar-w: 264px;
   --radius:    8px;
   --radius-lg: 12px;
@@ -227,7 +238,7 @@ body {
 .welcome-screen {
   flex: 1; display: flex; align-items: center; justify-content: center;
   min-height: calc(100vh - 0px);
-  background: linear-gradient(145deg, #f8f9fb 0%, #eef2ff 50%, #f0f9ff 100%);
+  background: linear-gradient(145deg, #f0ede8 0%, #e8f0f4 50%, #edf2f0 100%);
 }
 .welcome-content { text-align: center; padding: 40px 32px; }
 .welcome-logo {
@@ -376,7 +387,7 @@ body {
 .doc-content { padding: 18px 20px; }
 .prose { font-size: 0.84rem; line-height: 1.75; color: var(--text2); max-width: 70ch; }
 
-.code-block { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin: 10px 0; background: #f6f8fa; }
+.code-block { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin: 10px 0; background: #f2efea; }
 .code-block-header {
   display: flex; align-items: center; justify-content: space-between;
   background: var(--bg3); padding: 6px 12px; border-bottom: 1px solid var(--border);
@@ -399,7 +410,7 @@ body {
   margin: 0;
   padding: 0;
   overflow-x: auto;
-  background: #f6f8fa;
+  background: #f2efea;
 }
 
 /* hljs code block — block-level, no extra background fighting pre */
@@ -412,7 +423,7 @@ body {
   font-family: var(--font-mono);
   white-space: pre;          /* preserve indentation exactly */
   overflow-x: auto;
-  background: #f6f8fa;
+  background: #f2efea;
   color: #24292f;
   tab-size: 2;
   -moz-tab-size: 2;
