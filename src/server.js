@@ -3,7 +3,7 @@ const session = require('express-session');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 19284;
 
 // Middleware
 app.use(express.json({ limit: '10mb' }));
@@ -21,9 +21,13 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`\n  ╔══════════════════════════════════╗`);
-  console.log(`  ║   DevDocs running on port ${PORT}   ║`);
-  console.log(`  ╚══════════════════════════════════╝`);
-  console.log(`\n  → http://localhost:${PORT}\n`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`\n  ╔══════════════════════════════════╗`);
+    console.log(`  ║   DevDocs running on port ${PORT}   ║`);
+    console.log(`  ╚══════════════════════════════════╝`);
+    console.log(`\n  → http://localhost:${PORT}\n`);
+  });
+}
+
+module.exports = app;

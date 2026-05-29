@@ -1,7 +1,7 @@
 const Datastore = require('@seald-io/nedb');
 const path = require('path');
 
-const dbPath = path.join(__dirname, '../../data');
+const dbPath = process.env.DEVDOCS_DATA_PATH || path.join(__dirname, '../../data');
 require('fs').mkdirSync(dbPath, { recursive: true });
 
 // @seald-io/nedb natively exposes *Async methods — no manual promisify needed.
