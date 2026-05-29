@@ -1,30 +1,63 @@
-const { app, BrowserWindow, shell, Menu } = require('electron');
+const { app, BrowserWindow, shell, Menu, dialog } = require('electron');
 const path = require('path');
+const fs   = require('fs');
 const http = require('http');
 const net  = require('net');
 
-const isDev = process.env.NODE_ENV === 'development';
+const isDev = !app.isPackaged;
 const PORT  = 19284;
 
-// ── Data path ─────────────────────────────────────────────────────────────────
+// ── Always use AppData in production, local ./data in dev ─────────────────────
+function getDataPath() {
+  if (isDev) {
+    return path.join(__dirname, '..', 'data');
+  }
+  return path.join(app.getPath('userData'), 'data');
+}
+
+// ── On first packaged launch, copy bundled data into AppData ──────────────────
+function migrateData() {
+  if (isDev) return;
+
+  const dest = getDataPath();
+
+  // Where electron-builder puts extraResources
+  const src = path.join(process.resourcesPath, 'data');
+
+  // Make sure destination exists
+  fs.mkdirSync(dest, { recursive: true });
+
+  // If bundled data exists, copy any .db file that doesn't exist in dest yet
+  // This preserves data the user has created after first install
+  if (fs.existsSync(src)) {
+    const files = fs.readdirSync(src);
+    files.forEach(file => {
+      const destFile = path.join(dest, file);
+      const srcFile  = path.join(src, file);
+      // Only copy if destination file doesn't exist yet
+      // This means existing user data is never overwritten
+      if (!fs.existsSync(destFile)) {
+        try {
+          fs.copyFileSync(srcFile, destFile);
+          console.log(`Migrated: ${file}`);
+        } catch (e) {
+          console.error(`Failed to migrate ${file}:`, e.message);
+        }
+      }
+    });
+  }
+
+  process.env.DEVDOCS_DATA_PATH = dest;
+}
+
+// Set data path immediately so db.js picks it up when server.js is required
 if (isDev) {
   process.env.DEVDOCS_DATA_PATH = path.join(__dirname, '..', 'data');
 } else {
+  // Set early — migrateData() will also set it but server starts after
   process.env.DEVDOCS_DATA_PATH = path.join(app.getPath('userData'), 'data');
-}
-
-// ── Migrate bundled data on first packaged run ────────────────────────────────
-function migrateData() {
-  if (isDev) return;
-  const fs = require('fs');
-  const dest = process.env.DEVDOCS_DATA_PATH;
-  const src  = path.join(process.resourcesPath, 'data');
-  if (!fs.existsSync(dest) && fs.existsSync(src)) {
-    fs.mkdirSync(dest, { recursive: true });
-    fs.readdirSync(src).forEach(f => {
-      fs.copyFileSync(path.join(src, f), path.join(dest, f));
-    });
-  }
+  // Ensure the folder exists immediately
+  fs.mkdirSync(process.env.DEVDOCS_DATA_PATH, { recursive: true });
 }
 
 // ── Check if port is already in use ──────────────────────────────────────────

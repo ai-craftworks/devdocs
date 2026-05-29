@@ -31,9 +31,7 @@
       {
         "from": "data",
         "to": "data",
-        "filter": [
-          "**/*"
-        ]
+        "filter": ["**/*.db"]
       }
     ],
     "win": {
