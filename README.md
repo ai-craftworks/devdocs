@@ -19,6 +19,17 @@ npm link
 devdocs start
 ```
 
+### Generate desktop application
+
+```bash
+npm run electron:dev
+
+npm run build:win
+npm run build:mac
+npm run build:linux
+npm run build:all
+```
+
 Then open **http://localhost:3000** in your browser.
 
 ---
