@@ -1,8 +1,7 @@
-// DevDocs — Main Application
-// CodeMirror 6: loaded from self-hosted /js/cm-bundle.js (single IIFE, one @codemirror/state)
+// DevDocs — Main Application (Python/Bottle + SQLite backend)
+// CodeMirror 6 via self-hosted /js/cm-bundle.js (single IIFE, one @codemirror/state)
 // Quill for rich text editors
 
-// Destructure everything we need from the pre-built bundle (window.CM)
 const {
   EditorView, EditorState,
   keymap, lineNumbers, highlightActiveLineGutter, highlightSpecialChars,
@@ -67,9 +66,9 @@ function makeCmExtensions(lang, height = '280px') {
       '&': { height, fontSize: '13px', fontFamily: "'JetBrains Mono', 'Fira Code', monospace" },
       '.cm-scroller': { overflow: 'auto', lineHeight: '1.65' },
       '.cm-content': { padding: '10px 0' },
-      '.cm-gutters': { background: '#f8f9fb', borderRight: '1px solid #e2e6ed', color: '#9ca3af' },
-      '.cm-activeLineGutter': { background: '#eef2ff' },
-      '.cm-activeLine': { background: 'rgba(79,70,229,0.04)' },
+      '.cm-gutters': { background: '#21252b', borderRight: '1px solid #313640', color: '#4b5263' },
+      '.cm-activeLineGutter': { background: '#2c313a' },
+      '.cm-activeLine': { background: 'rgba(97,175,239,0.06)' },
     }),
     EditorView.lineWrapping,
   ];
@@ -142,12 +141,9 @@ const state = {
   editingRepo: null,
   editingDoc: null,
   selectedEmoji: '📁',
-  selectedColor: '#4f46e5',
-  // CodeMirror instances
+  selectedColor: '#61afef',
   cmInstances: {},
-  // Quill instances
   quillInstances: {},
-  // Page cells (for page doc type)
   pageCells: [],
 };
 
@@ -184,7 +180,6 @@ function closeModal(id) {
   if (!document.querySelectorAll('.modal.active').length) document.getElementById('modalOverlay').classList.remove('active');
 }
 
-// ── Destroy editors ───────────────────────────────────────────────────────────
 function destroyEditors() {
   Object.values(state.cmInstances).forEach(v => { try { v.destroy(); } catch(e){} });
   state.cmInstances = {};
@@ -210,17 +205,17 @@ function renderSidebarNav() {
     return;
   }
   nav.innerHTML = state.projects.map(p => `
-    <div class="project-item" id="pitem-${p._id}">
-      <div class="project-header ${state.currentProject?._id === p._id ? 'active' : ''}"
-           id="phdr-${p._id}" onclick="app.toggleProjectNav('${p._id}')">
+    <div class="project-item" id="pitem-${p.id}">
+      <div class="project-header ${state.currentProject?.id===p.id?'active':''}"
+           id="phdr-${p.id}" onclick="app.toggleProjectNav('${p.id}')">
         <span class="project-color-dot" style="background:${p.color}"></span>
         <span class="project-icon">${p.icon}</span>
         <span class="project-name" title="${esc(p.name)}">${esc(p.name)}</span>
         <svg class="project-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
       </div>
-      <div class="project-repos ${state.currentProject?._id === p._id ? 'visible' : ''}" id="prepos-${p._id}">
-        <div id="prepo-list-${p._id}"></div>
-        <button class="repo-add-btn" onclick="app.openNewRepo('${p._id}',event)">
+      <div class="project-repos ${state.currentProject?.id===p.id?'visible':''}" id="prepos-${p.id}">
+        <div id="prepo-list-${p.id}"></div>
+        <button class="repo-add-btn" onclick="app.openNewRepo('${p.id}',event)">
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Add Repository
         </button>
@@ -228,8 +223,8 @@ function renderSidebarNav() {
     </div>
   `).join('');
   if (state.currentProject) {
-    document.getElementById(`phdr-${state.currentProject._id}`)?.classList.add('open');
-    renderReposInNav(state.currentProject._id);
+    document.getElementById(`phdr-${state.currentProject.id}`)?.classList.add('open');
+    renderReposInNav(state.currentProject.id);
   }
 }
 
@@ -240,8 +235,8 @@ async function renderReposInNav(projectId) {
   if (!res.success) return;
   if (!res.data.length) { listEl.innerHTML = `<div style="font-size:0.71rem;color:var(--text4);padding:4px 8px;">No repositories</div>`; return; }
   listEl.innerHTML = res.data.map(r => `
-    <div class="repo-item-nav ${state.currentRepo?._id === r._id ? 'active' : ''}"
-         onclick="app.navToRepo('${r._id}','${projectId}')">
+    <div class="repo-item-nav ${state.currentRepo?.id===r.id?'active':''}"
+         onclick="app.navToRepo('${r.id}','${projectId}')">
       <span class="repo-dot"></span>${esc(r.name)}
     </div>`).join('');
 }
@@ -255,7 +250,7 @@ async function toggleProjectNav(projectId) {
   reposEl.classList.add('visible');
   hdr?.classList.add('open');
   await renderReposInNav(projectId);
-  const project = state.projects.find(p => p._id === projectId);
+  const project = state.projects.find(p => p.id === projectId);
   if (project) viewProject(project);
 }
 
@@ -272,12 +267,12 @@ async function navToRepo(repoId, projectId) {
 // ── Project CRUD ──────────────────────────────────────────────────────────────
 function openNewProject() {
   state.editingProject = null;
-  state.selectedEmoji = '📁'; state.selectedColor = '#4f46e5';
+  state.selectedEmoji = '📁'; state.selectedColor = '#61afef';
   document.getElementById('projectModalTitle').textContent = 'New Project';
   document.getElementById('projectName').value = '';
   document.getElementById('projectDesc').value = '';
   document.getElementById('saveProjectBtn').textContent = 'Create Project';
-  syncPickers('📁', '#4f46e5');
+  syncPickers('📁', '#61afef');
   openModal('projectModal');
   setTimeout(() => document.getElementById('projectName').focus(), 120);
 }
@@ -293,30 +288,30 @@ function openEditProject(project, e) {
   openModal('projectModal');
 }
 function syncPickers(emoji, color) {
-  document.querySelectorAll('.emoji-option').forEach(el => el.classList.toggle('selected', el.dataset.emoji === emoji));
-  document.querySelectorAll('.color-option').forEach(el => el.classList.toggle('selected', el.dataset.color === color));
+  document.querySelectorAll('.emoji-option').forEach(el => el.classList.toggle('selected', el.dataset.emoji===emoji));
+  document.querySelectorAll('.color-option').forEach(el => el.classList.toggle('selected', el.dataset.color===color));
 }
 async function saveProject() {
   const name = document.getElementById('projectName').value.trim();
   const description = document.getElementById('projectDesc').value.trim();
   if (!name) { toast('Project name is required', 'error'); return; }
   const payload = { name, description, icon: state.selectedEmoji, color: state.selectedColor };
-  const res = state.editingProject ? await api.put(`/api/projects/${state.editingProject._id}`, payload) : await api.post('/api/projects', payload);
+  const res = state.editingProject ? await api.put(`/api/projects/${state.editingProject.id}`, payload) : await api.post('/api/projects', payload);
   if (!res.success) { toast(res.error || 'Failed', 'error'); return; }
   toast(state.editingProject ? 'Project updated' : 'Project created!', 'success');
   closeModal('projectModal');
   await loadProjects();
   if (!state.editingProject) viewProject(res.data);
-  else if (state.currentProject?._id === res.data._id) { state.currentProject = res.data; viewProject(res.data); }
+  else if (state.currentProject?.id === res.data.id) { state.currentProject = res.data; viewProject(res.data); }
 }
 function confirmDeleteProject(project, e) {
   e?.stopPropagation();
   document.getElementById('confirmMessage').textContent = `Delete "${project.name}" and all its content? This cannot be undone.`;
   document.getElementById('confirmDeleteBtn').onclick = async () => {
-    const res = await api.del(`/api/projects/${project._id}`);
+    const res = await api.del(`/api/projects/${project.id}`);
     if (!res.success) { toast('Failed', 'error'); return; }
     toast('Project deleted', 'success'); closeModal('confirmModal');
-    if (state.currentProject?._id === project._id) { state.currentProject = null; state.currentRepo = null; goHome(); }
+    if (state.currentProject?.id === project.id) { state.currentProject = null; state.currentRepo = null; goHome(); }
     await loadProjects();
   };
   openModal('confirmModal');
@@ -326,9 +321,9 @@ function confirmDeleteProject(project, e) {
 async function viewProject(project) {
   destroyEditors();
   state.currentProject = project; state.currentRepo = null;
-  const reposRes = await api.get(`/api/repositories/project/${project._id}`);
+  const reposRes = await api.get(`/api/repositories/project/${project.id}`);
   const repos = reposRes.success ? reposRes.data : [];
-  const totalDocs = repos.reduce((s, r) => s + (r.docCount || 0), 0);
+  const totalDocs = repos.reduce((s, r) => s + (r.doc_count || 0), 0);
   setContent(`
     <div class="topbar">
       ${openSidebarBtn()}
@@ -340,7 +335,7 @@ async function viewProject(project) {
         </div>
       </div>
       <div class="topbar-right">
-        <button class="btn-secondary" onclick="app.exportProjectSite('${project._id}','${esc(project.name)}')">
+        <button class="btn-secondary" onclick="app.exportProjectSite('${project.id}','${esc(project.name)}')">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Export Site
         </button>
@@ -355,7 +350,7 @@ async function viewProject(project) {
           ${project.description ? `<div class="page-desc">${esc(project.description)}</div>` : ''}
         </div>
         <div class="page-actions">
-          <button class="btn-primary" onclick="app.openNewRepo('${project._id}')">
+          <button class="btn-primary" onclick="app.openNewRepo('${project.id}')">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             New Repository
           </button>
@@ -367,29 +362,34 @@ async function viewProject(project) {
       </div>
       <div class="repo-grid">
         ${repos.map(r => repoCard(r)).join('')}
-        <div class="add-card" onclick="app.openNewRepo('${project._id}')">
+        <div class="add-card" onclick="app.openNewRepo('${project.id}')">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           New Repository
         </div>
       </div>
-    </div>`);
+    </div>
+  `);
 }
 
 function repoCard(r) {
-  const tags = (r.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join('');
+  let tags = [];
+  try { tags = JSON.parse(r.tags || '[]'); } catch(e) {}
+  const tagsHtml = tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('');
   return `
-    <div class="repo-card" onclick="app.openRepo('${r._id}')">
+    <div class="repo-card" onclick="app.openRepo('${r.id}')">
       <div class="repo-card-top">
         <div class="repo-card-icon">🗂️</div>
         <div class="repo-card-actions-top">
-          <button class="btn-icon" onclick="app.openEditRepo('${r._id}',event)" title="Edit">${iconEdit()}</button>
-          <button class="btn-icon danger" onclick="app.confirmDeleteRepo('${r._id}','${esc(r.name)}',event)" title="Delete">${iconDelete()}</button>
+          <button class="btn-icon" onclick="app.openEditRepo('${r.id}',event)" title="Edit">${iconEdit()}</button>
+          <button class="btn-icon danger" onclick="app.confirmDeleteRepo('${r.id}','${esc(r.name)}',event)" title="Delete">${iconDelete()}</button>
         </div>
       </div>
       <div class="repo-card-name">${esc(r.name)}</div>
-      <div class="repo-card-desc">${esc(r.description || 'No description')}</div>
-      <div class="repo-card-footer"><div class="doc-count">${r.docCount || 0} document${r.docCount !== 1 ? 's' : ''}</div></div>
-      ${tags ? `<div class="tag-list">${tags}</div>` : ''}
+      <div class="repo-card-desc">${esc(r.description||'No description')}</div>
+      <div class="repo-card-footer">
+        <div class="doc-count">${r.doc_count||0} document${r.doc_count!==1?'s':''}</div>
+      </div>
+      ${tagsHtml ? `<div class="tag-list">${tagsHtml}</div>` : ''}
     </div>`;
 }
 
@@ -401,7 +401,7 @@ function openNewRepo(projectId, e) {
   document.getElementById('repoName').value = '';
   document.getElementById('repoDesc').value = '';
   document.getElementById('repoTags').value = '';
-  document.getElementById('repoModal').dataset.projectId = projectId || state.currentProject?._id;
+  document.getElementById('repoModal').dataset.projectId = projectId || state.currentProject?.id;
   openModal('repoModal');
   setTimeout(() => document.getElementById('repoName').focus(), 120);
 }
@@ -413,7 +413,9 @@ async function openEditRepo(repoId, e) {
   document.getElementById('repoModalTitle').textContent = 'Edit Repository';
   document.getElementById('repoName').value = r.name;
   document.getElementById('repoDesc').value = r.description;
-  document.getElementById('repoTags').value = (r.tags || []).join(', ');
+  let tags = [];
+  try { tags = JSON.parse(r.tags || '[]'); } catch(e) {}
+  document.getElementById('repoTags').value = tags.join(', ');
   openModal('repoModal');
 }
 async function saveRepository() {
@@ -423,15 +425,15 @@ async function saveRepository() {
   if (!name) { toast('Repository name is required', 'error'); return; }
   let res;
   if (state.editingRepo) {
-    res = await api.put(`/api/repositories/${state.editingRepo._id}`, { name, description, tags });
+    res = await api.put(`/api/repositories/${state.editingRepo.id}`, { name, description, tags });
   } else {
     const projectId = document.getElementById('repoModal').dataset.projectId;
-    res = await api.post('/api/repositories', { projectId, name, description, tags });
+    res = await api.post('/api/repositories', { project_id: projectId, name, description, tags });
   }
   if (!res.success) { toast(res.error || 'Failed', 'error'); return; }
   toast(state.editingRepo ? 'Repository updated' : 'Repository created!', 'success');
   closeModal('repoModal');
-  if (state.currentProject) { await viewProject(state.currentProject); renderReposInNav(state.currentProject._id); }
+  if (state.currentProject) { await viewProject(state.currentProject); renderReposInNav(state.currentProject.id); }
   if (!state.editingRepo) viewRepository(res.data);
 }
 async function openRepo(repoId) {
@@ -439,7 +441,7 @@ async function openRepo(repoId) {
   if (!res.success) return;
   await viewRepository(res.data);
   renderSidebarNav();
-  if (state.currentProject) renderReposInNav(state.currentProject._id);
+  if (state.currentProject) renderReposInNav(state.currentProject.id);
 }
 async function confirmDeleteRepo(repoId, repoName, e) {
   e?.stopPropagation();
@@ -448,9 +450,9 @@ async function confirmDeleteRepo(repoId, repoName, e) {
     const res = await api.del(`/api/repositories/${repoId}`);
     if (!res.success) { toast('Failed', 'error'); return; }
     toast('Repository deleted', 'success'); closeModal('confirmModal');
-    if (state.currentRepo?._id === repoId) { state.currentRepo = null; if (state.currentProject) viewProject(state.currentProject); }
+    if (state.currentRepo?.id === repoId) { state.currentRepo = null; if (state.currentProject) viewProject(state.currentProject); }
     else if (state.currentProject) viewProject(state.currentProject);
-    if (state.currentProject) renderReposInNav(state.currentProject._id);
+    if (state.currentProject) renderReposInNav(state.currentProject.id);
   };
   openModal('confirmModal');
 }
@@ -459,14 +461,16 @@ async function confirmDeleteRepo(repoId, repoName, e) {
 async function viewRepository(repo) {
   destroyEditors();
   state.currentRepo = repo; state.activeDocTab = 'all';
-  const docsRes = await api.get(`/api/documents/repository/${repo._id}`);
+  const docsRes = await api.get(`/api/documents/repository/${repo.id}`);
   state.currentDocs = docsRes.success ? docsRes.data : [];
   renderRepoPage();
 }
 
 function renderRepoPage() {
   const repo = state.currentRepo, project = state.currentProject;
-  const tags = (repo.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join('');
+  let tags = [];
+  try { tags = JSON.parse(repo.tags || '[]'); } catch(e) {}
+  const tagsHtml = tags.map(t => `<span class="tag">${esc(t)}</span>`).join('');
   setContent(`
     <div class="topbar">
       ${openSidebarBtn()}
@@ -483,25 +487,21 @@ function renderRepoPage() {
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Add Document
         </button>
-        <div class="export-dropdown" id="exportDropdown-${repo._id}">
-          <button class="btn-secondary" onclick="app.toggleExportMenu('${repo._id}')">
+        <div class="export-dropdown" id="exportDropdown-${repo.id}">
+          <button class="btn-secondary" onclick="app.toggleExportMenu('${repo.id}')">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Export
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
-          <div class="export-menu" id="exportMenu-${repo._id}">
-            <a class="export-menu-item" href="/api/export/repository/${repo._id}/pdf" target="_blank">
+          <div class="export-menu" id="exportMenu-${repo.id}">
+            <a class="export-menu-item" href="/api/export/repository/${repo.id}/markdown" download>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-              Export as PDF
-            </a>
-            <a class="export-menu-item" href="/api/export/repository/${repo._id}/markdown" download>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
               Export as Markdown
             </a>
           </div>
         </div>
-        <button class="btn-secondary" onclick="app.openEditRepo('${repo._id}')">${iconEdit()} Edit</button>
-        <button class="btn-icon danger" onclick="app.confirmDeleteRepo('${repo._id}','${esc(repo.name)}')" title="Delete">${iconDelete()}</button>
+        <button class="btn-secondary" onclick="app.openEditRepo('${repo.id}')">${iconEdit()} Edit</button>
+        <button class="btn-icon danger" onclick="app.confirmDeleteRepo('${repo.id}','${esc(repo.name)}')" title="Delete">${iconDelete()}</button>
       </div>
     </div>
     <div class="page">
@@ -512,12 +512,13 @@ function renderRepoPage() {
             ${esc(repo.name)}
           </div>
           ${repo.description ? `<div class="page-desc">${esc(repo.description)}</div>` : ''}
-          ${tags ? `<div class="tag-list" style="margin-top:8px">${tags}</div>` : ''}
+          ${tagsHtml ? `<div class="tag-list" style="margin-top:8px">${tagsHtml}</div>` : ''}
         </div>
       </div>
       <div class="tab-bar" id="docTabs">${renderDocTabs()}</div>
       <div id="docListContainer">${renderDocList()}</div>
-    </div>`);
+    </div>
+  `);
   highlightAll();
 }
 
@@ -529,8 +530,8 @@ function renderDocTabs() {
     {key:'guide',label:'Guide',icon:'📖'},{key:'page',label:'Page',icon:'📄'},
   ];
   return types.map(t => {
-    const count = t.key === 'all' ? state.currentDocs.length : state.currentDocs.filter(d => d.type === t.key).length;
-    return `<button class="tab-btn ${state.activeDocTab === t.key ? 'active' : ''}" onclick="app.switchDocTab('${t.key}')">
+    const count = t.key==='all' ? state.currentDocs.length : state.currentDocs.filter(d=>d.doc_type===t.key).length;
+    return `<button class="tab-btn ${state.activeDocTab===t.key?'active':''}" onclick="app.switchDocTab('${t.key}')">
       ${t.icon} ${t.label} <span class="tab-count">${count}</span>
     </button>`;
   }).join('');
@@ -544,7 +545,7 @@ function switchDocTab(tab) {
 }
 
 function renderDocList() {
-  const filtered = state.activeDocTab === 'all' ? state.currentDocs : state.currentDocs.filter(d => d.type === state.activeDocTab);
+  const filtered = state.activeDocTab==='all' ? state.currentDocs : state.currentDocs.filter(d=>d.doc_type===state.activeDocTab);
   if (!filtered.length) return `<div class="empty-state">
     <div class="empty-state-icon">📭</div>
     <div class="empty-state-title">No documents here</div>
@@ -555,25 +556,25 @@ function renderDocList() {
 }
 
 function renderDocCard(doc) {
-  const info = docTypeInfo(doc.type);
-  const date = new Date(doc.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const info = docTypeInfo(doc.doc_type);
+  const date = new Date(doc.updated_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
   return `
-    <div class="doc-card" id="doc-${doc._id}">
-      <div class="doc-card-header" onclick="app.toggleDoc('${doc._id}')">
+    <div class="doc-card" id="doc-${doc.id}">
+      <div class="doc-card-header" onclick="app.toggleDoc('${doc.id}')">
         <div class="doc-card-left">
-          <span class="doc-type-badge type-${doc.type}">${info.icon} ${info.label}</span>
+          <span class="doc-type-badge type-${doc.doc_type}">${info.icon} ${info.label}</span>
           <span class="doc-card-title">${esc(doc.title)}</span>
         </div>
         <div class="doc-card-right">
           <span class="doc-card-date">${date}</span>
           <div class="doc-card-actions">
-            <button class="btn-icon" onclick="app.goToEditDoc('${doc._id}',event)" title="Edit">${iconEdit()}</button>
-            <button class="btn-icon danger" onclick="app.confirmDeleteDoc('${doc._id}','${esc(doc.title)}',event)" title="Delete">${iconDelete()}</button>
+            <button class="btn-icon" onclick="app.goToEditDoc('${doc.id}',event)" title="Edit">${iconEdit()}</button>
+            <button class="btn-icon danger" onclick="app.confirmDeleteDoc('${doc.id}','${esc(doc.title)}',event)" title="Delete">${iconDelete()}</button>
           </div>
-          <svg class="doc-chevron" id="chevron-${doc._id}" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          <svg class="doc-chevron" id="chevron-${doc.id}" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
       </div>
-      <div class="doc-card-body" id="body-${doc._id}">${renderDocContent(doc)}</div>
+      <div class="doc-card-body" id="body-${doc.id}">${renderDocContent(doc)}</div>
     </div>`;
 }
 
@@ -586,8 +587,12 @@ function toggleDoc(docId) {
 }
 
 // ── Doc content renderers (read view) ─────────────────────────────────────────
+function parseMeta(doc) {
+  try { return JSON.parse(doc.metadata || '{}'); } catch(e) { return {}; }
+}
+
 function renderDocContent(doc) {
-  switch (doc.type) {
+  switch(doc.doc_type) {
     case 'code':      return renderCodeDoc(doc);
     case 'example':   return renderExampleDoc(doc);
     case 'changelog': return renderChangelogDoc(doc);
@@ -599,16 +604,14 @@ function renderDocContent(doc) {
 }
 
 function renderOverviewDoc(doc) {
-  return `<div class="doc-content">
-    <div class="prose">${doc.content || '<em style="color:var(--text4)">No content</em>'}</div>
-  </div>`;
+  return `<div class="doc-content"><div class="prose">${doc.content || '<em style="color:var(--text4)">No content</em>'}</div></div>`;
 }
 
 function renderCodeDoc(doc) {
-  const m = doc.metadata || {};
-  const lang = m.language || 'javascript';
+  const m = parseMeta(doc);
+  const lang = m.language||'javascript';
   return `<div class="doc-content">
-    ${(m.why || m.how) ? `<div class="why-how-grid">
+    ${(m.why||m.how) ? `<div class="why-how-grid">
       ${m.why ? `<div class="why-block"><div class="why-how-label">Why this change</div><div class="why-how-content">${m.why}</div></div>` : ''}
       ${m.how ? `<div class="how-block"><div class="why-how-label">How to use</div><div class="why-how-content">${m.how}</div></div>` : ''}
     </div>` : ''}
@@ -618,8 +621,8 @@ function renderCodeDoc(doc) {
 }
 
 function renderExampleDoc(doc) {
-  const m = doc.metadata || {};
-  const lang = m.language || 'javascript';
+  const m = parseMeta(doc);
+  const lang = m.language||'javascript';
   return `<div class="example-block">
     ${doc.content ? `<div class="example-section"><div class="example-section-label">Description</div><div class="prose">${doc.content}</div></div>` : ''}
     ${m.inputCode ? `<div class="example-section"><div class="example-section-label">Input / Before</div>${codeBlock(m.inputCode, lang)}</div>` : ''}
@@ -629,32 +632,38 @@ function renderExampleDoc(doc) {
 }
 
 function renderChangelogDoc(doc) {
-  const m = doc.metadata || {};
+  const m = parseMeta(doc);
+  const entries = m.entries||[];
   return `<div class="changelog-entries">
     ${doc.content ? `<div class="prose" style="margin-bottom:14px">${doc.content}</div>` : ''}
-    ${(m.entries || []).map(e => `<div class="changelog-entry">
-      <div><span class="changelog-version">${esc(e.version || '')}</span>${e.date ? `<span class="changelog-date">${esc(e.date)}</span>` : ''}</div>
+    ${entries.map(e => `<div class="changelog-entry">
+      <div>
+        <span class="changelog-version">${esc(e.version||'v?.?.?')}</span>
+        ${e.date ? `<span class="changelog-date">${esc(e.date)}</span>` : ''}
+      </div>
       <ul class="changelog-changes">
-        ${(e.changes || []).map(c => `<li class="change-${c.type || 'added'}">${esc(c.text)}</li>`).join('')}
+        ${(e.changes||[]).map(c=>`<li class="change-${c.type||'added'}">${esc(c.text)}</li>`).join('')}
       </ul>
     </div>`).join('')}
+    ${!entries.length ? '<p style="color:var(--text4);font-size:0.82rem">No changelog entries.</p>' : ''}
   </div>`;
 }
 
 function renderAlgorithmDoc(doc) {
-  const m = doc.metadata || {};
-  const lang = m.language || 'javascript';
+  const m = parseMeta(doc);
+  const steps = m.steps||[];
+  const lang = m.language||'javascript';
   return `<div class="algo-steps">
     ${doc.content ? `<div class="prose" style="margin-bottom:18px">${doc.content}</div>` : ''}
-    ${(m.steps || []).map((s, i) => `<div class="algo-step">
-      <div class="algo-step-num">${String(i + 1).padStart(2, '0')}</div>
+    ${steps.map((s,i) => `<div class="algo-step">
+      <div class="algo-step-num">${String(i+1).padStart(2,'0')}</div>
       <div class="algo-step-content">
         ${s.title ? `<div class="algo-step-title">${esc(s.title)}</div>` : ''}
         ${s.description ? `<div class="algo-step-desc">${s.description}</div>` : ''}
         ${s.code ? codeBlock(s.code, lang) : ''}
       </div>
     </div>`).join('')}
-    ${(m.timeComplexity || m.spaceComplexity) ? `<div class="algo-complexity">
+    ${(m.timeComplexity||m.spaceComplexity) ? `<div class="algo-complexity">
       ${m.timeComplexity ? `<div class="complexity-badge"><span class="complexity-label">Time</span><span class="complexity-value">${esc(m.timeComplexity)}</span></div>` : ''}
       ${m.spaceComplexity ? `<div class="complexity-badge"><span class="complexity-label">Space</span><span class="complexity-value">${esc(m.spaceComplexity)}</span></div>` : ''}
     </div>` : ''}
@@ -662,13 +671,14 @@ function renderAlgorithmDoc(doc) {
 }
 
 function renderGuideDoc(doc) {
-  const m = doc.metadata || {};
-  const lang = m.language || 'bash';
+  const m = parseMeta(doc);
+  const steps = m.steps||[];
+  const lang = m.language||'bash';
   return `<div class="doc-content">
     ${doc.content ? `<div class="prose" style="margin-bottom:16px">${doc.content}</div>` : ''}
     ${m.prerequisites ? `<div class="notes-block" style="border-left:3px solid var(--yellow);background:var(--yellow-bg);margin-bottom:16px"><strong style="color:var(--yellow)">Prerequisites</strong>${m.prerequisites}</div>` : ''}
-    ${(m.steps || []).map((s, i) => `<div class="algo-step" style="margin-bottom:16px">
-      <div class="algo-step-num" style="background:#f0fdfa;border-color:#99f6e4;color:var(--teal)">${i + 1}</div>
+    ${steps.map((s,i) => `<div class="algo-step" style="margin-bottom:16px">
+      <div class="algo-step-num" style="background:rgba(86,182,194,0.1);border-color:rgba(86,182,194,0.25);color:var(--teal)">${i+1}</div>
       <div class="algo-step-content">
         ${s.title ? `<div class="algo-step-title">${esc(s.title)}</div>` : ''}
         ${s.description ? `<div class="algo-step-desc">${s.description}</div>` : ''}
@@ -679,9 +689,10 @@ function renderGuideDoc(doc) {
 }
 
 function renderPageDoc(doc) {
-  const cells = doc.metadata?.cells || [];
-  if (!cells.length) return `<div class="doc-content"><em style="color:var(--text4)">Empty page — no cells added yet.</em></div>`;
-  const html = `<div class="page-doc-view">${cells.map((cell, i) => {
+  const m = parseMeta(doc);
+  const cells = m.cells||[];
+  if (!cells.length) return `<div class="doc-content"><em style="color:var(--text4)">Empty page</em></div>`;
+  return `<div class="page-doc-view">${cells.map(cell => {
     if (cell.type === 'text') {
       return `<div class="page-cell-view page-cell-text">${cell.content || ''}</div>`;
     } else {
@@ -689,9 +700,6 @@ function renderPageDoc(doc) {
       return `<div class="page-cell-view page-cell-code">${codeBlock(cell.content || '', lang)}</div>`;
     }
   }).join('')}</div>`;
-  // Highlight after a tick so the DOM is ready
-  setTimeout(() => highlightAll(), 80);
-  return html;
 }
 
 function codeBlock(code, lang) {
@@ -727,7 +735,7 @@ async function goToEditDoc(docId, e) {
   if (!res.success) return;
   state.editingDoc = res.data;
   destroyEditors();
-  renderEditorPage(res.data.type, res.data);
+  renderEditorPage(res.data.doc_type, res.data);
 }
 
 function renderEditorPage(selectedType, doc) {
@@ -741,12 +749,12 @@ function renderEditorPage(selectedType, doc) {
           <span class="breadcrumb-link" onclick="app.goHome()">Home</span>
           <span class="breadcrumb-sep">›</span>
           ${project ? `<span class="breadcrumb-link" onclick="app.viewProject(app.getProject())">${esc(project.name)}</span><span class="breadcrumb-sep">›</span>` : ''}
-          ${repo ? `<span class="breadcrumb-link" onclick="app.openRepo('${repo._id}')">${esc(repo.name)}</span><span class="breadcrumb-sep">›</span>` : ''}
+          ${repo ? `<span class="breadcrumb-link" onclick="app.openRepo('${repo.id}')">${esc(repo.name)}</span><span class="breadcrumb-sep">›</span>` : ''}
           <span class="breadcrumb-current">${isEdit ? 'Edit Document' : 'New Document'}</span>
         </div>
       </div>
       <div class="topbar-right">
-        <button class="btn-ghost" onclick="app.openRepo('${repo?._id}')">Cancel</button>
+        <button class="btn-ghost" onclick="app.openRepo('${repo?.id}')">Cancel</button>
         <button class="btn-primary" id="saveDocBtn" onclick="app.saveDocument()">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
           Save Document
@@ -758,18 +766,21 @@ function renderEditorPage(selectedType, doc) {
         <div class="editor-type-sidebar">
           <div class="type-sidebar-label">Document Type</div>
           ${DOC_TYPES.map(t => `
-            <div class="type-option ${selectedType === t.key ? 'active' : ''}" id="type-opt-${t.key}" onclick="app.switchEditorType('${t.key}')">
+            <div class="type-option ${selectedType===t.key?'active':''}"
+                 id="type-opt-${t.key}"
+                 onclick="app.switchEditorType('${t.key}')">
               <span class="type-option-icon">${t.icon}</span>
               <span class="type-option-label">${t.label}</span>
             </div>`).join('')}
         </div>
         <div class="editor-form-area" id="editorFormArea">
           <input type="text" class="editor-title-input" id="docTitle"
-                 placeholder="Document title…" value="${esc(doc?.title || '')}" />
+                 placeholder="Document title…" value="${esc(doc?.title||'')}" />
           <div id="docTypeFields"></div>
         </div>
       </div>
-    </div>`);
+    </div>
+  `);
   renderEditorFields(selectedType, doc);
 }
 
@@ -777,12 +788,12 @@ function switchEditorType(type) {
   document.querySelectorAll('.type-option').forEach(el => el.classList.remove('active'));
   document.getElementById(`type-opt-${type}`)?.classList.add('active');
   destroyEditors();
-  renderEditorFields(type, state.editingDoc?.type === type ? state.editingDoc : null);
+  renderEditorFields(type, state.editingDoc?.doc_type === type ? state.editingDoc : null);
 }
 
 // ── Editor fields ─────────────────────────────────────────────────────────────
 function renderEditorFields(type, doc) {
-  const m = doc?.metadata || {};
+  const m = doc ? parseMeta(doc) : {};
   const container = document.getElementById('docTypeFields');
   container.dataset.currentType = type;
 
@@ -915,7 +926,7 @@ function renderEditorFields(type, doc) {
     requestAnimationFrame(() => {
       state.quillInstances.overview = createQuill('quill-overview', doc?.content || '', '140px');
       steps.forEach((s, i) => {
-      state.quillInstances[`step-desc-${i}`] = createQuill(`quill-step-desc-${i}`, s.description || '', '120px');
+        state.quillInstances[`step-desc-${i}`] = createQuill(`quill-step-desc-${i}`, s.description || '', '120px');
         if (s.code) {
           const el = document.getElementById(`cm-step-${i}`);
           if (el) {
@@ -957,7 +968,7 @@ function renderEditorFields(type, doc) {
       state.quillInstances.intro   = createQuill('quill-intro',   doc?.content || '', '140px');
       state.quillInstances.prereqs = createQuill('quill-prereqs', m.prerequisites || '', '100px');
       steps.forEach((s, i) => {
-      state.quillInstances[`step-desc-${i}`] = createQuill(`quill-step-desc-${i}`, s.description || '', '120px');
+        state.quillInstances[`step-desc-${i}`] = createQuill(`quill-step-desc-${i}`, s.description || '', '120px');
         if (s.code) {
           const el = document.getElementById(`cm-step-${i}`);
           if (el) {
@@ -971,21 +982,12 @@ function renderEditorFields(type, doc) {
 
   } else if (type === 'page') {
     const cells = m.cells || [];
-    // Assign stable IDs — reset counter so edit mode starts from a known base
     pageCellCounter = 1000;
     state.pageCells = cells.map((c) => ({ ...c, id: pageCellCounter++ }));
-
-    // Build wrapper divs for each existing cell inline so mountPageCell finds them
     const wrappersHtml = state.pageCells.map(cell =>
       `<div id="page-cell-${cell.id}" class="page-cell-wrapper"></div>`
     ).join('');
-
     container.innerHTML = `
-      <div id="pageCellList" class="page-cell-list">
-        ${state.pageCells.length === 0
-          ? `<div class="page-empty-hint">Click "Add Text Block" or "Add Code Block" to start building your page.</div>`
-          : wrappersHtml}
-      </div>
       <div class="page-editor-toolbar">
         <button class="page-add-btn text-btn" onclick="app.addPageCell('text')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
@@ -996,138 +998,21 @@ function renderEditorFields(type, doc) {
           Add Code Block
         </button>
       </div>
-      `;
-
-    // Mount each cell — wrappers are now in the DOM
+      <div id="pageCellList" class="page-cell-list">
+        ${state.pageCells.length === 0
+          ? `<div class="page-empty-hint">Click "Add Text Block" or "Add Code Block" to start building your page.</div>`
+          : wrappersHtml}
+      </div>`;
     requestAnimationFrame(() => {
       state.pageCells.forEach((cell) => mountPageCell(cell));
     });
   }
 }
 
-// ── Page cell system ──────────────────────────────────────────────────────────
-let pageCellCounter = 0;
-
-function addPageCell(type) {
-  const id = pageCellCounter++;
-  const cell = { id, type, content: '', language: 'javascript' };
-  state.pageCells.push(cell);
-  const list = document.getElementById('pageCellList');
-
-  // Remove empty hint if present
-  const hint = list.querySelector('.page-empty-hint');
-  if (hint) hint.remove();
-
-  // Create wrapper first, then mount
-  const wrapper = document.createElement('div');
-  wrapper.id = `page-cell-${id}`;
-  wrapper.className = 'page-cell-wrapper';
-  list.appendChild(wrapper);
-  mountPageCell(cell);
-}
-
-function mountPageCell(cell) {
-  const wrapper = document.getElementById(`page-cell-${cell.id}`);
-  if (!wrapper) return;
-
-  if (cell.type === 'text') {
-    wrapper.innerHTML = `
-      <div class="page-cell page-cell-text-editor">
-        <div class="page-cell-controls">
-          <span class="page-cell-type-badge">Text</span>
-          <div class="page-cell-ctrl-btns">
-            <button class="btn-icon" onclick="app.movePageCell(${cell.id},-1)" title="Move up">↑</button>
-            <button class="btn-icon" onclick="app.movePageCell(${cell.id},1)"  title="Move down">↓</button>
-            <button class="btn-icon danger" onclick="app.removePageCell(${cell.id})" title="Delete">${iconDelete()}</button>
-          </div>
-        </div>
-        <div id="quill-cell-${cell.id}" class="quill-editor-wrap"></div>
-      </div>`;
-    requestAnimationFrame(() => {
-      state.quillInstances[`cell-${cell.id}`] = createQuill(`quill-cell-${cell.id}`, cell.content || '', '180px');
-    });
-
-  } else {
-    const lang = cell.language || 'javascript';
-    wrapper.innerHTML = `
-      <div class="page-cell page-cell-code-editor">
-        <div class="page-cell-controls">
-          <span class="page-cell-type-badge code">Code</span>
-          <div style="display:flex;align-items:center;gap:8px">
-            <select class="cm-lang-select" onchange="app.changePageCellLang(${cell.id},this.value)">
-              ${langOptions(lang)}
-            </select>
-            <div class="page-cell-ctrl-btns">
-              <button class="btn-icon" onclick="app.movePageCell(${cell.id},-1)" title="Move up">↑</button>
-              <button class="btn-icon" onclick="app.movePageCell(${cell.id},1)"  title="Move down">↓</button>
-              <button class="btn-icon danger" onclick="app.removePageCell(${cell.id})" title="Delete">${iconDelete()}</button>
-            </div>
-          </div>
-        </div>
-        <div class="cm-wrapper" style="border-radius:0 0 var(--radius) var(--radius)">
-          <div id="cm-cell-${cell.id}"></div>
-        </div>
-      </div>`;
-    requestAnimationFrame(() => {
-      const el = document.getElementById(`cm-cell-${cell.id}`);
-      if (el) state.cmInstances[`cell-${cell.id}`] = createEditor(el, cell.content || '', lang, '220px');
-    });
-  }
-}
-
-function movePageCell(cellId, direction) {
-  const idx = state.pageCells.findIndex(c => c.id === cellId);
-  if (idx < 0) return;
-  const newIdx = idx + direction;
-  if (newIdx < 0 || newIdx >= state.pageCells.length) return;
-  // Swap
-  [state.pageCells[idx], state.pageCells[newIdx]] = [state.pageCells[newIdx], state.pageCells[idx]];
-  // Re-render the list by reordering DOM elements
-  const list = document.getElementById('pageCellList');
-  const cells = [...list.querySelectorAll('.page-cell-wrapper')];
-  const a = document.getElementById(`page-cell-${cellId}`);
-  const b = document.getElementById(`page-cell-${state.pageCells[idx].id}`);
-  if (direction === -1) list.insertBefore(a, b);
-  else list.insertBefore(b, a);
-}
-
-function removePageCell(cellId) {
-  // Destroy editors
-  if (state.cmInstances[`cell-${cellId}`]) { state.cmInstances[`cell-${cellId}`].destroy(); delete state.cmInstances[`cell-${cellId}`]; }
-  if (state.quillInstances[`cell-${cellId}`]) { delete state.quillInstances[`cell-${cellId}`]; }
-  state.pageCells = state.pageCells.filter(c => c.id !== cellId);
-  document.getElementById(`page-cell-${cellId}`)?.remove();
-  if (!state.pageCells.length) {
-    const list = document.getElementById('pageCellList');
-    if (list) list.innerHTML = `<div class="page-empty-hint">Click "Add Text Block" or "Add Code Block" to start building your page.</div>`;
-  }
-}
-
-function changePageCellLang(cellId, lang) {
-  const cell = state.pageCells.find(c => c.id === cellId);
-  if (cell) cell.language = lang;
-  const view = state.cmInstances[`cell-${cellId}`];
-  if (view) setEditorLang(view, lang);
-}
-
-function collectPageCells() {
-  return state.pageCells.map(cell => {
-    if (cell.type === 'text') {
-      const q = state.quillInstances[`cell-${cell.id}`];
-      return { type: 'text', content: getQuillHtml(q) };
-    } else {
-      const view = state.cmInstances[`cell-${cell.id}`];
-      const sel  = document.querySelector(`#page-cell-${cell.id} .cm-lang-select`);
-      return { type: 'code', content: getEditorValue(view), language: sel?.value || cell.language || 'javascript' };
-    }
-  });
-}
-
-// ── Step form helpers ─────────────────────────────────────────────────────────
 function renderStepForm(step, index) {
   return `
     <div class="step-row" id="step-row-${index}">
-      <div class="step-num">${String(index + 1).padStart(2, '00')}</div>
+      <div class="step-num">${String(index+1).padStart(2,'0')}</div>
       <div class="step-inputs">
         <input type="text" class="step-input title" placeholder="Step title…" value="${esc(step.title || '')}" />
         <div class="step-desc-quill" id="quill-step-desc-${index}"></div>
@@ -1162,10 +1047,8 @@ function addStep() {
   div.innerHTML = renderStepForm({ title: '', description: '', code: '' }, index);
   builder.appendChild(div.firstElementChild);
   renumberSteps();
-  // Init Quill for the new step's description
-  const newIndex = builder.querySelectorAll('.step-row').length - 1;
   requestAnimationFrame(() => {
-    state.quillInstances[`step-desc-${newIndex}`] = createQuill(`quill-step-desc-${newIndex}`, '', '120px');
+    state.quillInstances[`step-desc-${index}`] = createQuill(`quill-step-desc-${index}`, '', '120px');
   });
 }
 
@@ -1179,12 +1062,13 @@ function removeStep(index) {
 function renumberSteps() {
   document.querySelectorAll('#stepBuilder .step-row').forEach((row, i) => {
     row.id = `step-row-${i}`;
-    const num = row.querySelector('.step-num'); if (num) num.textContent = String(i + 1).padStart(2, '0');;
+    const num = row.querySelector('.step-num'); if (num) num.textContent = String(i + 1).padStart(2, '0');
     row.querySelector('.remove-step-btn')?.setAttribute('onclick', `app.removeStep(${i})`);
     const tog = row.querySelector('.step-code-toggle');
     if (tog) { tog.id = `step-code-toggle-${i}`; tog.setAttribute('onclick', `app.toggleStepCode(${i})`); }
     const area = row.querySelector('.step-code-area'); if (area) area.id = `step-code-area-${i}`;
     const cmEl = row.querySelector('[id^="cm-step-"]'); if (cmEl) cmEl.id = `cm-step-${i}`;
+    const qEl = row.querySelector('.step-desc-quill'); if (qEl) qEl.id = `quill-step-desc-${i}`;
   });
 }
 
@@ -1207,15 +1091,10 @@ function renderChangelogEntryForm(entry, ei) {
       </button>
     </div>`;
 }
-function renderChangeRow(c, ei, ci) {
+function renderChangeRow(change, ei, ci) {
   return `<div class="change-row" id="cr-${ei}-${ci}">
-    <select>
-      <option value="added"   ${c.type==='added'  ?'selected':''}>Added</option>
-      <option value="fixed"   ${c.type==='fixed'  ?'selected':''}>Fixed</option>
-      <option value="removed" ${c.type==='removed'?'selected':''}>Removed</option>
-      <option value="changed" ${c.type==='changed'?'selected':''}>Changed</option>
-    </select>
-    <input type="text" placeholder="Describe the change…" value="${esc(c.text || '')}" />
+    <select><option value="added" ${change.type==='added'?'selected':''}>Added</option><option value="fixed" ${change.type==='fixed'?'selected':''}>Fixed</option><option value="removed" ${change.type==='removed'?'selected':''}>Removed</option><option value="changed" ${change.type==='changed'?'selected':''}>Changed</option></select>
+    <input type="text" placeholder="Describe the change…" value="${esc(change.text || '')}" />
     <button class="remove-step-btn" style="width:24px;height:24px" onclick="this.closest('.change-row').remove()">
       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
@@ -1225,7 +1104,7 @@ function addChangelogEntry() {
   const container = document.getElementById('changelogEntries');
   const index = container.querySelectorAll('.changelog-entry-form').length;
   const div = document.createElement('div');
-  div.innerHTML = renderChangelogEntryForm({ version: '', date: '', changes: [] }, index);
+  div.innerHTML = renderChangelogEntryForm({version:'',date:'',changes:[]}, index);
   container.appendChild(div.firstElementChild);
 }
 function removeChangelogEntry(ei) { document.getElementById(`cl-entry-${ei}`)?.remove(); }
@@ -1234,7 +1113,7 @@ function addChangeRow(ei) {
   if (!container) return;
   const ci = container.querySelectorAll('.change-row').length;
   const div = document.createElement('div');
-  div.innerHTML = renderChangeRow({ type: 'added', text: '' }, ei, ci);
+  div.innerHTML = renderChangeRow({type:'added',text:''}, ei, ci);
   container.appendChild(div.firstElementChild);
 }
 
@@ -1243,13 +1122,121 @@ function changeExampleLang(lang) {
   ['inputCode', 'outputCode'].forEach(k => { if (state.cmInstances[k]) setEditorLang(state.cmInstances[k], lang); });
 }
 
+// ── Page cell system ──────────────────────────────────────────────────────────
+let pageCellCounter = 0;
+
+function addPageCell(type) {
+  const id = pageCellCounter++;
+  const cell = { id, type, content: '', language: 'javascript' };
+  state.pageCells.push(cell);
+  const list = document.getElementById('pageCellList');
+  const hint = list.querySelector('.page-empty-hint');
+  if (hint) hint.remove();
+  const wrapper = document.createElement('div');
+  wrapper.id = `page-cell-${id}`;
+  wrapper.className = 'page-cell-wrapper';
+  list.appendChild(wrapper);
+  mountPageCell(cell);
+}
+
+function mountPageCell(cell) {
+  const wrapper = document.getElementById(`page-cell-${cell.id}`);
+  if (!wrapper) return;
+  if (cell.type === 'text') {
+    wrapper.innerHTML = `
+      <div class="page-cell page-cell-text-editor">
+        <div class="page-cell-controls">
+          <span class="page-cell-type-badge">Text</span>
+          <div class="page-cell-ctrl-btns">
+            <button class="btn-icon" onclick="app.movePageCell(${cell.id},-1)" title="Move up">↑</button>
+            <button class="btn-icon" onclick="app.movePageCell(${cell.id},1)"  title="Move down">↓</button>
+            <button class="btn-icon danger" onclick="app.removePageCell(${cell.id})" title="Delete">${iconDelete()}</button>
+          </div>
+        </div>
+        <div id="quill-cell-${cell.id}" class="quill-editor-wrap"></div>
+      </div>`;
+    requestAnimationFrame(() => {
+      state.quillInstances[`cell-${cell.id}`] = createQuill(`quill-cell-${cell.id}`, cell.content || '', '180px');
+    });
+  } else {
+    const lang = cell.language || 'javascript';
+    wrapper.innerHTML = `
+      <div class="page-cell page-cell-code-editor">
+        <div class="page-cell-controls">
+          <span class="page-cell-type-badge code">Code</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <select class="cm-lang-select" onchange="app.changePageCellLang(${cell.id},this.value)">
+              ${langOptions(lang)}
+            </select>
+            <div class="page-cell-ctrl-btns">
+              <button class="btn-icon" onclick="app.movePageCell(${cell.id},-1)" title="Move up">↑</button>
+              <button class="btn-icon" onclick="app.movePageCell(${cell.id},1)"  title="Move down">↓</button>
+              <button class="btn-icon danger" onclick="app.removePageCell(${cell.id})" title="Delete">${iconDelete()}</button>
+            </div>
+          </div>
+        </div>
+        <div class="cm-wrapper" style="border-radius:0 0 var(--radius) var(--radius)">
+          <div id="cm-cell-${cell.id}"></div>
+        </div>
+      </div>`;
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`cm-cell-${cell.id}`);
+      if (el) state.cmInstances[`cell-${cell.id}`] = createEditor(el, cell.content || '', lang, '220px');
+    });
+  }
+}
+
+function movePageCell(cellId, direction) {
+  const idx = state.pageCells.findIndex(c => c.id === cellId);
+  if (idx < 0) return;
+  const newIdx = idx + direction;
+  if (newIdx < 0 || newIdx >= state.pageCells.length) return;
+  [state.pageCells[idx], state.pageCells[newIdx]] = [state.pageCells[newIdx], state.pageCells[idx]];
+  const list = document.getElementById('pageCellList');
+  const a = document.getElementById(`page-cell-${cellId}`);
+  const b = document.getElementById(`page-cell-${state.pageCells[idx].id}`);
+  if (direction === -1) list.insertBefore(a, b);
+  else list.insertBefore(b, a);
+}
+
+function removePageCell(cellId) {
+  if (state.cmInstances[`cell-${cellId}`]) { state.cmInstances[`cell-${cellId}`].destroy(); delete state.cmInstances[`cell-${cellId}`]; }
+  if (state.quillInstances[`cell-${cellId}`]) { delete state.quillInstances[`cell-${cellId}`]; }
+  state.pageCells = state.pageCells.filter(c => c.id !== cellId);
+  document.getElementById(`page-cell-${cellId}`)?.remove();
+  if (!state.pageCells.length) {
+    const list = document.getElementById('pageCellList');
+    if (list) list.innerHTML = `<div class="page-empty-hint">Click "Add Text Block" or "Add Code Block" to start building your page.</div>`;
+  }
+}
+
+function changePageCellLang(cellId, lang) {
+  const cell = state.pageCells.find(c => c.id === cellId);
+  if (cell) cell.language = lang;
+  const view = state.cmInstances[`cell-${cellId}`];
+  if (view) setEditorLang(view, lang);
+}
+
+function collectPageCells() {
+  return state.pageCells.map(cell => {
+    if (cell.type === 'text') {
+      const q = state.quillInstances[`cell-${cell.id}`];
+      return { type: 'text', content: getQuillHtml(q) };
+    } else {
+      const view = state.cmInstances[`cell-${cell.id}`];
+      const sel  = document.querySelector(`#page-cell-${cell.id} .cm-lang-select`);
+      return { type: 'code', content: getEditorValue(view), language: sel?.value || cell.language || 'javascript' };
+    }
+  });
+}
+
 // ── Collect & save ────────────────────────────────────────────────────────────
 function collectFormData() {
-  const type  = document.getElementById('docTypeFields').dataset.currentType;
-  const title = document.getElementById('docTitle')?.value?.trim() || '';
+  const type   = document.getElementById('docTypeFields').dataset.currentType;
+  const title  = document.getElementById('docTitle')?.value?.trim() || '';
   let content = '', metadata = {};
 
-  switch (type) {
+  switch(type) {
     case 'overview':
       content = getQuillHtml(state.quillInstances.overview);
       break;
@@ -1257,9 +1244,9 @@ function collectFormData() {
     case 'code':
       content = getEditorValue(state.cmInstances.mainCode);
       metadata = {
-        why:      getQuillHtml(state.quillInstances.why),
-        how:      getQuillHtml(state.quillInstances.how),
-        notes:    getQuillHtml(state.quillInstances.notes),
+        why: getQuillHtml(state.quillInstances.why),
+        how: getQuillHtml(state.quillInstances.how),
+        notes: getQuillHtml(state.quillInstances.notes),
         language: document.getElementById('codeLang')?.value || 'javascript',
       };
       break;
@@ -1268,9 +1255,9 @@ function collectFormData() {
       const lang = document.getElementById('exampleLang')?.value || 'javascript';
       content = getQuillHtml(state.quillInstances.desc);
       metadata = {
-        language:       lang,
-        inputCode:      getEditorValue(state.cmInstances.inputCode),
-        outputCode:     getEditorValue(state.cmInstances.outputCode),
+        language: lang,
+        inputCode: getEditorValue(state.cmInstances.inputCode),
+        outputCode: getEditorValue(state.cmInstances.outputCode),
         expectedOutput: document.getElementById('docExpected')?.value || '',
       };
       break;
@@ -1296,15 +1283,7 @@ function collectFormData() {
     case 'algorithm': {
       const lang = document.getElementById('algoLang')?.value || 'javascript';
       content = getQuillHtml(state.quillInstances.overview);
-      const steps = [];
-      document.querySelectorAll('#stepBuilder .step-row').forEach((row, i) => {
-        const inputs = row.querySelectorAll('.step-input');
-        const codeArea = document.getElementById(`step-code-area-${i}`);
-        const code = (codeArea?.classList.contains('visible') && state.cmInstances[`step-${i}`])
-          ? getEditorValue(state.cmInstances[`step-${i}`]) : '';
-        const description = getQuillHtml(state.quillInstances[`step-desc-${i}`]);
-        steps.push({ title: inputs[0]?.value || '', description, code });
-      });
+      const steps = collectSteps();
       metadata = { steps, language: lang, timeComplexity: document.getElementById('timeComplexity')?.value || '', spaceComplexity: document.getElementById('spaceComplexity')?.value || '' };
       break;
     }
@@ -1312,15 +1291,7 @@ function collectFormData() {
     case 'guide': {
       const lang = document.getElementById('guideLang')?.value || 'bash';
       content = getQuillHtml(state.quillInstances.intro);
-      const steps = [];
-      document.querySelectorAll('#stepBuilder .step-row').forEach((row, i) => {
-        const inputs = row.querySelectorAll('.step-input');
-        const codeArea = document.getElementById(`step-code-area-${i}`);
-        const code = (codeArea?.classList.contains('visible') && state.cmInstances[`step-${i}`])
-          ? getEditorValue(state.cmInstances[`step-${i}`]) : '';
-        const description = getQuillHtml(state.quillInstances[`step-desc-${i}`]);
-        steps.push({ title: inputs[0]?.value || '', description, code });
-      });
+      const steps = collectSteps();
       metadata = { steps, language: lang, prerequisites: getQuillHtml(state.quillInstances.prereqs) };
       break;
     }
@@ -1330,19 +1301,32 @@ function collectFormData() {
       break;
   }
 
-  return { title, type, content, metadata };
+  return { title, doc_type: type, content, metadata };
+}
+
+function collectSteps() {
+  const steps = [];
+  document.querySelectorAll('#stepBuilder .step-row').forEach((row, i) => {
+    const inputs = row.querySelectorAll('.step-input');
+    const codeArea = document.getElementById(`step-code-area-${i}`);
+    const code = (codeArea?.classList.contains('visible') && state.cmInstances[`step-${i}`])
+      ? getEditorValue(state.cmInstances[`step-${i}`]) : '';
+    const description = getQuillHtml(state.quillInstances[`step-desc-${i}`]);
+    steps.push({ title: inputs[0]?.value || '', description, code });
+  });
+  return steps;
 }
 
 async function saveDocument() {
-  const { title, type, content, metadata } = collectFormData();
+  const { title, doc_type, content, metadata } = collectFormData();
   if (!title) { toast('Document title is required', 'error'); return; }
   const btn = document.getElementById('saveDocBtn');
   if (btn) btn.disabled = true;
   let res;
   if (state.editingDoc) {
-    res = await api.put(`/api/documents/${state.editingDoc._id}`, { title, type, content, metadata });
+    res = await api.put(`/api/documents/${state.editingDoc.id}`, { title, doc_type, content, metadata });
   } else {
-    res = await api.post('/api/documents', { repositoryId: state.currentRepo._id, title, type, content, metadata });
+    res = await api.post('/api/documents', { repository_id: state.currentRepo.id, title, doc_type, content, metadata });
   }
   if (btn) btn.disabled = false;
   if (!res.success) { toast(res.error || 'Failed to save', 'error'); return; }
@@ -1362,6 +1346,31 @@ async function confirmDeleteDoc(docId, docTitle, e) {
   };
   openModal('confirmModal');
 }
+
+// ── Export ────────────────────────────────────────────────────────────────────
+function exportProjectSite(projectId, projectName) {
+  const a = document.createElement('a');
+  a.href = `/api/export/project/${projectId}/site`;
+  a.download = `${projectName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-docs.zip`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  toast('Generating site… download will start shortly', 'info');
+}
+
+function toggleExportMenu(repoId) {
+  const menu = document.getElementById(`exportMenu-${repoId}`);
+  if (!menu) return;
+  const isOpen = menu.classList.contains('open');
+  document.querySelectorAll('.export-menu.open').forEach(m => m.classList.remove('open'));
+  if (!isOpen) menu.classList.add('open');
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.export-dropdown')) {
+    document.querySelectorAll('.export-menu.open').forEach(m => m.classList.remove('open'));
+  }
+});
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 function copyCode(btn) {
@@ -1383,8 +1392,8 @@ function langOptions(selected) {
 }
 
 function docTypeInfo(type) {
-  const map = { overview:{icon:'📋',label:'Overview'}, code:{icon:'💻',label:'Code'}, example:{icon:'🔬',label:'Example'}, changelog:{icon:'🔄',label:'Changelog'}, algorithm:{icon:'⚡',label:'Algorithm'}, guide:{icon:'📖',label:'Guide'}, page:{icon:'📄',label:'Page'} };
-  return map[type] || { icon: '📄', label: type };
+  const map = {overview:{icon:'📋',label:'Overview'},code:{icon:'💻',label:'Code'},example:{icon:'🔬',label:'Example'},changelog:{icon:'🔄',label:'Changelog'},algorithm:{icon:'⚡',label:'Algorithm'},guide:{icon:'📖',label:'Guide'},page:{icon:'📄',label:'Page'}};
+  return map[type] || {icon:'📄',label:type};
 }
 
 function esc(str) {
@@ -1448,27 +1457,17 @@ async function handleSearch(query) {
   if (!resultsEl) return;
   if (!query.trim()) { resultsEl.classList.remove('visible'); return; }
   searchTimer = setTimeout(async () => {
-    const results = [];
-    for (const project of state.projects) {
-      const reposRes = await api.get(`/api/repositories/project/${project._id}`);
-      for (const repo of (reposRes.data || [])) {
-        const docsRes = await api.get(`/api/documents/repository/${repo._id}`);
-        for (const doc of (docsRes.data || [])) {
-          if (doc.title.toLowerCase().includes(query.toLowerCase()) || doc.content?.toLowerCase().includes(query.toLowerCase())) {
-            results.push({ doc, repo, project });
-          }
-        }
-      }
-    }
+    const res = await api.get(`/api/documents/search?q=${encodeURIComponent(query)}`);
+    const results = res.success ? res.data : [];
     if (!results.length) {
       resultsEl.innerHTML = `<div style="padding:14px;text-align:center;color:var(--text4);font-size:0.79rem">No results found</div>`;
     } else {
-      resultsEl.innerHTML = results.slice(0, 8).map(r => `
-        <div class="search-result-item" onclick="app.navToRepo('${r.repo._id}','${r.project._id}')">
-          <span class="doc-type-badge type-${r.doc.type}" style="font-size:0.6rem">${docTypeInfo(r.doc.type).icon}</span>
+      resultsEl.innerHTML = results.slice(0, 8).map(doc => `
+        <div class="search-result-item" onclick="app.navToDocViaSearch('${doc.id}','${doc.repository_id}')">
+          <span class="doc-type-badge type-${doc.doc_type}" style="font-size:0.6rem">${docTypeInfo(doc.doc_type).icon}</span>
           <div>
-            <div class="search-result-title">${esc(r.doc.title)}</div>
-            <div class="search-result-meta">${esc(r.project.name)} › ${esc(r.repo.name)}</div>
+            <div class="search-result-title">${esc(doc.title)}</div>
+            <div class="search-result-meta">${esc(doc.doc_type)}</div>
           </div>
         </div>`).join('');
     }
@@ -1476,32 +1475,16 @@ async function handleSearch(query) {
   }, 300);
 }
 
-// ── Export helpers ────────────────────────────────────────────────────────────
-function exportProjectSite(projectId, projectName) {
-  const a = document.createElement('a');
-  a.href = `/api/export/project/${projectId}/site`;
-  a.download = `${projectName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-docs.zip`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  toast('Generating site… download will start shortly', 'info');
+async function navToDocViaSearch(docId, repoId) {
+  const repoRes = await api.get(`/api/repositories/${repoId}`);
+  if (!repoRes.success) return;
+  const projRes = await api.get(`/api/projects/${repoRes.data.project_id}`);
+  if (projRes.success) state.currentProject = projRes.data;
+  await viewRepository(repoRes.data);
+  renderSidebarNav();
+  if (state.currentProject) renderReposInNav(state.currentProject.id);
+  document.getElementById('searchResults')?.classList.remove('visible');
 }
-
-function toggleExportMenu(repoId) {
-  const menu = document.getElementById(`exportMenu-${repoId}`);
-  if (!menu) return;
-  const isOpen = menu.classList.contains('open');
-  // close all open menus first
-  document.querySelectorAll('.export-menu.open').forEach(m => m.classList.remove('open'));
-  if (!isOpen) menu.classList.add('open');
-}
-
-// Close export menus when clicking outside
-document.addEventListener('click', e => {
-  if (!e.target.closest('.export-dropdown')) {
-    document.querySelectorAll('.export-menu.open').forEach(m => m.classList.remove('open'));
-  }
-});
 
 // ── Public API ────────────────────────────────────────────────────────────────
 window.app = {
@@ -1519,6 +1502,7 @@ window.app = {
   addPageCell, removePageCell, movePageCell, changePageCellLang,
   copyCode, closeModal,
   exportProjectSite, toggleExportMenu,
+  navToDocViaSearch,
 };
 
 // ── Init ──────────────────────────────────────────────────────────────────────
@@ -1536,12 +1520,12 @@ async function init() {
     opt.classList.add('selected'); state.selectedColor = opt.dataset.color;
   });
   document.getElementById('modalOverlay').addEventListener('click', () => {
-    document.querySelectorAll('.modal.active').forEach(m => { m.classList.remove('active'); setTimeout(() => { if (!m.classList.contains('active')) m.style.display = 'none'; }, 180); });
+    document.querySelectorAll('.modal.active').forEach(m => { m.classList.remove('active'); setTimeout(() => { if (!m.classList.contains('active')) m.style.display='none'; }, 180); });
     document.getElementById('modalOverlay').classList.remove('active');
   });
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
-      document.querySelectorAll('.modal.active').forEach(m => { m.classList.remove('active'); setTimeout(() => { if (!m.classList.contains('active')) m.style.display = 'none'; }, 180); });
+      document.querySelectorAll('.modal.active').forEach(m => { m.classList.remove('active'); setTimeout(() => { if (!m.classList.contains('active')) m.style.display='none'; }, 180); });
       document.getElementById('modalOverlay').classList.remove('active');
     }
   });
