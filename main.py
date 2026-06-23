@@ -6,7 +6,6 @@ import sys
 import os
 import threading
 import webview
-webview.platforms.winforms = None  # prevent accidental winforms import
 from src.server import create_app
 
 def get_data_dir():
