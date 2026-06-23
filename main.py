@@ -6,6 +6,7 @@ import sys
 import os
 import threading
 import webview
+webview.platforms.winforms = None  # prevent accidental winforms import
 from src.server import create_app
 
 def get_data_dir():
@@ -57,7 +58,7 @@ def main():
         min_size=(900, 600),
         background_color='#1e2227',
     )
-    webview.start(debug=('--debug' in sys.argv))
+    webview.start(debug=('--debug' in sys.argv), gui='edgechromium')
 
 
 if __name__ == '__main__':

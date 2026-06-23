@@ -24,9 +24,9 @@ a = Analysis(
     hiddenimports=[
         'bottle',
         'webview',
-        'webview.platforms.winforms',  # Windows
-        'webview.platforms.cocoa',     # macOS
-        'webview.platforms.gtk',       # Linux
+        'webview.platforms.edgechromium',  # Windows — primary backend
+        'webview.platforms.cocoa',          # macOS
+        'webview.platforms.gtk',            # Linux
         'sqlite3',
     ],
     hookspath=[],
