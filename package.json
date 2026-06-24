@@ -11,7 +11,8 @@
     "build:win": "electron-builder --win",
     "build:mac": "electron-builder --mac",
     "build:linux": "electron-builder --linux",
-    "build:all": "electron-builder --win --mac --linux"
+    "build:all": "electron-builder --win --mac --linux",
+    "package:portable": "electron-packager . DevDocs --platform=win32 --arch=x64 --out=dist --overwrite --ignore=dist --ignore=.git --ignore=data && xcopy /E /I /Y data dist\\DevDocs-win32-x64\\data && node zip_portable.js"
   },
   "build": {
     "appId": "com.devdocs.app",
@@ -31,7 +32,9 @@
       {
         "from": "data",
         "to": "data",
-        "filter": ["**/*.db"]
+        "filter": [
+          "**/*.db"
+        ]
       }
     ],
     "win": {
@@ -70,6 +73,7 @@
   "dependencies": {
     "@seald-io/nedb": "^4.1.2",
     "archiver": "^8.0.0",
+    "electron-packager": "^17.1.2",
     "express": "^4.18.2",
     "express-session": "^1.17.3",
     "highlight.js": "^11.9.0",
