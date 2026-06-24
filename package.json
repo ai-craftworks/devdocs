@@ -1,6 +1,6 @@
 {
   "name": "devdocs",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Developer Documentation Builder",
   "main": "electron/main.js",
   "scripts": {
